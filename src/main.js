@@ -114,39 +114,60 @@ callButton.onclick = async () => {
 
 // 3. Answer the call
 answerButton.onclick = async () => {
-  const callId = callInput.value;
-  const callDocRef = doc(firestore, 'calls', callId);
-  const answerCandidatesColRef = collection(callDocRef, 'answerCandidates');
-  const offerCandidatesColRef = collection(callDocRef, 'offerCandidates');
+  try {
+    const callId = callInput.value;
+    const callDocRef = doc(firestore, 'calls', callId);
+    const answerCandidatesColRef = collection(callDocRef, 'answerCandidates');
+    const offerCandidatesColRef = collection(callDocRef, 'offerCandidates');
 
-  pc.onicecandidate = (event) => {
-    if (event.candidate) {
-      addDoc(answerCandidatesColRef, event.candidate.toJSON());
-    }
-  };
-
-  const callDocSnap = await getDoc(callDocRef);
-  const callData = callDocSnap.data();
-
-  const offerDescription = callData.offer;
-  await pc.setRemoteDescription(new RTCSessionDescription(offerDescription));
-
-  const answerDescription = await pc.createAnswer();
-  await pc.setLocalDescription(answerDescription);
-
-  const answer = {
-    type: answerDescription.type,
-    sdp: answerDescription.sdp,
-  };
-
-  await updateDoc(callDocRef, { answer });
-
-  onSnapshot(offerCandidatesColRef, (snapshot) => {
-    snapshot.docChanges().forEach((change) => {
-      if (change.type === 'added') {
-        let candidateData = change.doc.data();
-        pc.addIceCandidate(new RTCIceCandidate(candidateData));
+    // Set ICE candidate listener
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        addDoc(answerCandidatesColRef, event.candidate.toJSON());
       }
+    };
+
+    // Fetch the offer from Firestore
+    const callDocSnap = await getDoc(callDocRef);
+    if (!callDocSnap.exists()) {
+      throw new Error("Call document does not exist");
+    }
+
+    const callData = callDocSnap.data();
+    const offerDescription = callData.offer;
+
+    // Ensure the offer description is set correctly
+    if (!pc.currentRemoteDescription) {
+      await pc.setRemoteDescription(new RTCSessionDescription(offerDescription));
+    } else {
+      console.warn("Remote description is already set. Skipping...");
+    }
+
+    // Create and set the local answer
+    if (pc.signalingState === "have-remote-offer") {
+      const answerDescription = await pc.createAnswer();
+      await pc.setLocalDescription(answerDescription);
+
+      const answer = {
+        type: answerDescription.type,
+        sdp: answerDescription.sdp,
+      };
+
+      await updateDoc(callDocRef, { answer });
+    } else {
+      console.warn("PeerConnection is not in 'have-remote-offer' state. Skipping...");
+    }
+
+    // Listen for offer candidates
+    onSnapshot(offerCandidatesColRef, (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === 'added') {
+          const candidateData = change.doc.data();
+          pc.addIceCandidate(new RTCIceCandidate(candidateData));
+        }
+      });
     });
-  });
+  } catch (error) {
+    console.error("Error handling answer:", error);
+  }
 };
