@@ -137,8 +137,9 @@ answerButton.onclick = async () => {
     const offerDescription = callData.offer;
 
     // Ensure the offer description is set correctly
-    if (!pc.currentRemoteDescription) {
+    if (!pc.currentRemoteDescription && offerDescription) {
       await pc.setRemoteDescription(new RTCSessionDescription(offerDescription));
+      console.log("Remote description set successfully.")
     } else {
       console.warn("Remote description is already set. Skipping...");
     }
