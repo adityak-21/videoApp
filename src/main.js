@@ -7,7 +7,7 @@ import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.1.1/firebase-
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
+  apiKey: "AIzaSyBLgnjbE8qmtdNNHtxScXtofyE-GJRxtZk",
   authDomain: "videocall-2cede.firebaseapp.com",
   projectId: "videocall-2cede",
   storageBucket: "videocall-2cede.firebasestorage.app",
